@@ -49,7 +49,7 @@ function buildGraph() {
   }
 
   simulation = forceSimulation(nodes)
-    .force('link', forceLink(links).distance((d) => (d.target.type === 'kind' ? 70 : 46)).strength(0.7))
+    .force('link', forceLink(links).id((d) => d.id).distance((d) => (d.target.type === 'kind' ? 70 : 46)).strength(0.7))
     .force('charge', forceManyBody().strength(-160))
     .force('center', forceCenter(0, 0))
     .force('collide', forceCollide().radius((d) => radiusOf(d) + 4))
@@ -72,6 +72,10 @@ function radiusOf(node) {
 
 // 搜索 / 过滤条件下的节点可见性：命中高亮，其余淡出
 function nodeState(node) {
+  // link 尚未被 d3-force 解析成节点对象（字符串）时按淡出处理
+  if (!node || typeof node !== 'object' || !node.label) {
+    return 'dimmed'
+  }
   const search = props.search.trim().toLowerCase()
   if (node.type === 'patent' && props.activeKinds[node.patent.kind] === false) {
     return 'filtered'
@@ -109,6 +113,7 @@ function draw() {
   // 边
   ctx.lineWidth = 0.8
   for (const l of links) {
+    if (typeof l.source !== 'object' || typeof l.target !== 'object') continue
     const sState = l.source.type === 'patent' ? nodeState(l.source) : (nodeState(l.source) === 'active' || relatedToActive(l.source) ? 'active' : nodeState(l.source))
     const tState = l.target.type === 'patent' ? nodeState(l.target) : (nodeState(l.target) === 'active' || relatedToActive(l.target) ? 'active' : nodeState(l.target))
     const visible = sState !== 'filtered' && tState !== 'filtered'
