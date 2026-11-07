@@ -14,6 +14,15 @@ const search = ref('')
 const selected = ref(null)
 const hover = ref(null)
 const activeKinds = ref({})
+const dataFetchedAt = ref(null)
+const dataStale = ref(false)
+
+const fetchedAtText = computed(() => {
+  if (!dataFetchedAt.value) return ''
+  const d = new Date(dataFetchedAt.value)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+})
 
 const kinds = computed(() => {
   const counts = new Map()
@@ -51,7 +60,17 @@ const selectedPatents = computed(() => {
 
 onMounted(async () => {
   try {
-    patents.value = await fetchPatents(DATA_OWNER, DATA_REPO, dataRef)
+    const result = await fetchPatents(DATA_OWNER, DATA_REPO, dataRef, {
+      onStale: (entry) => {
+        patents.value = entry.patents
+        dataFetchedAt.value = entry.fetchedAt
+        dataStale.value = true
+        loading.value = false
+      },
+    })
+    patents.value = result.patents
+    dataFetchedAt.value = result.fetchedAt
+    dataStale.value = false
   } catch (err) {
     error.value = err.message || '数据加载失败'
   } finally {
@@ -72,6 +91,11 @@ onMounted(async () => {
         />
       </div>
       <div class="app-header__stats">
+        <template v-if="fetchedAtText">
+          数据更新于 {{ fetchedAtText }}
+          <span v-if="dataStale" class="stale-note">（后台刷新中）</span>
+          <br />
+        </template>
         {{ patents.length }} 条专利 · {{ companies.length }} 家公司 · {{ kinds.length }} 个领域
         <template v-if="dataRef !== 'master'"> · 数据分支 {{ dataRef }}</template>
       </div>
