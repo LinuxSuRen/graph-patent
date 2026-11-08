@@ -279,6 +279,57 @@ function onWheel(e) {
 watch(() => props.patents, buildGraph)
 watch([() => props.search, () => props.activeKinds], scheduleRender, { deep: true })
 
+// 搜索命中后把相关节点居中展示（带平滑过渡）
+let focusTimer = null
+watch(
+  () => props.search,
+  (val) => {
+    clearTimeout(focusTimer)
+    focusTimer = setTimeout(() => focusOnMatches(val), 300)
+  },
+)
+
+function focusOnMatches(search) {
+  search = (search || '').trim().toLowerCase()
+  if (!search || !nodes.length) return
+  const matched = nodes.filter((n) => n.type === 'patent' && nodeState(n) === 'active')
+  if (!matched.length) return
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+  for (const n of matched) {
+    minX = Math.min(minX, n.x)
+    maxX = Math.max(maxX, n.x)
+    minY = Math.min(minY, n.y)
+    maxY = Math.max(maxY, n.y)
+  }
+  const cx = (minX + maxX) / 2
+  const cy = (minY + maxY) / 2
+  const w = maxX - minX + 320
+  const h = maxY - minY + 240
+  const k = Math.min(2.5, Math.max(0.5, Math.min(width / w, height / h)))
+  animateTransform({ x: -cx * k, y: -cy * k, k })
+}
+
+let animId = 0
+function animateTransform(target) {
+  cancelAnimationFrame(animId)
+  const from = { ...transform }
+  const start = performance.now()
+  const duration = 350
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / duration)
+    const ease = 1 - Math.pow(1 - t, 3)
+    transform.x = from.x + (target.x - from.x) * ease
+    transform.y = from.y + (target.y - from.y) * ease
+    transform.k = from.k + (target.k - from.k) * ease
+    scheduleRender()
+    if (t < 1) animId = requestAnimationFrame(step)
+  }
+  animId = requestAnimationFrame(step)
+}
+
 let resizeObserver
 onMounted(() => {
   buildGraph()
@@ -290,6 +341,8 @@ onUnmounted(() => {
   if (simulation) simulation.stop()
   if (resizeObserver) resizeObserver.disconnect()
   if (rafId) cancelAnimationFrame(rafId)
+  cancelAnimationFrame(animId)
+  clearTimeout(focusTimer)
 })
 </script>
 

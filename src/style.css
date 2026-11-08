@@ -74,6 +74,18 @@ body {
   text-align: right;
 }
 
+.gh-link {
+  color: var(--color-text-dim);
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--space-2);
+  transition: color 0.15s ease;
+}
+
+.gh-link:hover {
+  color: var(--color-text-bright);
+}
+
 .stale-note {
   color: var(--color-text-secondary);
   font-size: 11px;
